@@ -1,0 +1,146 @@
+---
+title: Event streaming
+description: Stream subagents, messages, tool calls, and final output from Deep Agents.
+---
+
+Deep Agents build on LangGraph's [event streaming](/oss/python/langgraph/streaming/event-streaming) model and add a first-class `subagents` projection. Use it when you want application-facing streams for the coordinator agent, delegated subagents, nested messages, tool calls, and final state.
+
+<Tip>
+Check out the [streaming cookbook](https://github.com/langchain-ai/streaming-cookbook) for runnable examples and links to detailed reference documentation.
+</Tip>
+
+<Note>
+For information about lower-level Pregel stream modes, refer to the [Deep Agents streaming](/oss/python/deepagents/streaming) docs.
+</Note>
+
+## Stream subagents
+
+Deep Agents add a subagent projection on top of LangGraph streaming. Use `run.subagents` when you want one stream handle per delegated `task` call. The projection discovers subagent tasks first, then opens message, tool-call, and value streams when you access them on a subagent handle.
+
+```python
+run = agent.stream_events(
+    {"messages": [{"role": "user", "content": "Write me a haiku about the sea"}]},
+    version="v3",
+)
+
+for subagent in run.subagents:
+    print(subagent.name, subagent.path, subagent.status)
+
+    for message in subagent.messages:
+        print(str(message.text))
+```
+
+
+
+
+## Subagent stream fields
+
+Each subagent stream exposes the same kinds of projections as the parent run, such as messages, tool calls, nested subagents, and final output. For the general parent-run streaming model, see [LangChain Event Streaming](/oss/python/langchain/event-streaming).
+
+Python uses snake_case projection names such as `tool_calls`. Each subagent stream can expose `.messages`, `.tool_calls`, `.values`, `.subagents`, and `.output`.
+
+
+
+
+| Field | Description |
+| ----- | ----------- |
+| `name` | Subagent name. |
+| `messages` | Messages emitted by the subagent. |
+| `subagents` | Nested subagent invocations. |
+| `output` | Final subagent state, or completion signal for the delegated task. |
+| `task_input` | Prompt or input passed to the task tool. |
+| `path` | Namespace path for the subagent run. |
+| `status` | Lifecycle status such as `started`, `running`, `completed`, `failed`, or `interrupted`. |
+| `tool_calls` | Tool calls scoped to the subagent. |
+
+
+
+## Track subagent lifecycle
+
+Use `run.subagents` when you only need to show which subagents started and finished. You do not need to subscribe to message or value streams unless you access those projections on an individual subagent.
+
+```python
+run = agent.stream_events(input, version="v3")
+
+running = 0
+completed = 0
+failed = 0
+
+for subagent in run.subagents:
+    running += 1
+    print(f"{subagent.name}: started")
+
+    try:
+        _ = subagent.output
+        running -= 1
+        completed += 1
+        print(f"{subagent.name}: completed")
+    except Exception:
+        running -= 1
+        failed += 1
+        print(f"{subagent.name}: failed")
+```
+
+
+
+
+## Stream messages and tools
+
+Deep Agents can emit messages and tool calls from the coordinator agent and from delegated subagents. Use `run.messages` or `run.tool_calls` for coordinator streams, then access the same projections on each subagent.
+
+```python
+run = agent.stream_events(input, version="v3")
+
+for message in run.messages:
+    print("[coordinator]", str(message.text))
+
+for subagent in run.subagents:
+    for message in subagent.messages:
+        print(f"[{subagent.name}]", str(message.text))
+
+    for call in subagent.tool_calls:
+        print(f"[{subagent.name} tool]", call.tool_name, call.input)
+        for delta in call.output_deltas:
+            print(delta, end="", flush=True)
+```
+
+
+
+
+## Consume concurrently
+
+Coordinator and subagent output often interleave. Consume projections concurrently when you need live UI updates.
+
+Use `run.interleave(...)` when you want one sync loop over multiple projections:
+
+```python
+run = agent.stream_events(input, version="v3")
+
+for name, item in run.interleave("messages", "subagents"):
+    if name == "messages":
+        print("[coordinator]", str(item.text))
+    else:
+        for message in item.messages:
+            print(f"[{item.name}]", str(message.text))
+```
+
+
+
+
+## Related
+
+- [Streaming cookbook](https://github.com/langchain-ai/streaming-cookbook) shows runnable Event Streaming examples.
+- [LangChain Event Streaming](/oss/python/langchain/event-streaming) covers general agent message and tool-call streaming concepts.
+- [Subagent frontend streaming](/oss/python/deepagents/frontend/subagent-streaming) shows UI patterns that separate coordinator messages from subagent cards.
+- [LangGraph Event Streaming](/oss/python/langgraph/streaming/event-streaming) covers the underlying graph streaming model.
+
+---
+
+<div className="source-links">
+<Callout icon="terminal-2">
+    [Connect these docs](/use-these-docs) to Claude, VSCode, and more via MCP for real-time answers.
+</Callout>
+<Callout icon="edit">
+    [Edit this page on GitHub](https://github.com/langchain-ai/docs/edit/main/src/oss/deepagents/event-streaming.mdx) or [file an issue](https://github.com/langchain-ai/docs/issues/new/choose).
+</Callout>
+</div>
