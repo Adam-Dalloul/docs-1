@@ -1582,7 +1582,7 @@
                     {
                       "group": "Interpreter libraries",
                       "pages": [
-                        "oss/javascript/deepagents/interpreter-libraries"
+                        "oss/javascript/deepagents/swarm"
                       ]
                     },
                     {

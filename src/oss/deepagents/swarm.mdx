@@ -1,16 +1,12 @@
 ---
-title: Interpreter Libraries
-description: Interpreter libraries that ship with @langchain/quickjs
+title: Swarm
+description: Parallel task fan-out with a table-based data model
 tag: "Beta"
 ---
 
 :::js
 
-Interpreter libraries ship with `@langchain/quickjs` and can be added to any agent with [interpreter middleware](/oss/deepagents/interpreters). For background on how libraries work, see [Interpreter libraries](/oss/deepagents/interpreters#interpreter-libraries).
-
-## Swarm
-
-The `swarm` library provides parallel task fan-out with a table-based data model. It gives agents a three-function API (`create`, `run`, `rows`) that handles concurrency, batching, error grouping, and result merging.
+The `swarm` [interpreter library](/oss/deepagents/interpreters#interpreter-libraries) provides parallel task fan-out with a table-based data model. It gives agents a three-function API (`create`, `run`, `rows`) that handles concurrency, batching, error grouping, and result merging.
 
 The core value:
 
