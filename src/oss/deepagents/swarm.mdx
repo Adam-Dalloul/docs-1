@@ -10,11 +10,11 @@ The `swarm` [interpreter library](/oss/deepagents/interpreters#interpreter-libra
 
 The core value:
 
-- **Context isolation.** Source data and results stay in the interpreter. The agent sees lightweight handles and summaries, not the raw data. An agent processing 1,500 records consumes only a few hundred bytes of context through swarm.
+- **Context isolation.** Source data and results stay in the interpreter. The agent sees lightweight handles and summaries, not the raw data. Only computed output from `console.log` enters the agent's context.
 - **Deterministic coverage.** The dispatch loop is infrastructure, not generated code. The agent can't quietly skip items or decide a sample is "sufficient."
-- **Concurrency management.** Bounded worker pool (up to 10 concurrent dispatches) with auto-batching for larger tables.
+- **Structured accumulation.** Subagent results merge as typed columns on the table. Subsequent passes can filter on those columns, so multi-stage pipelines build on previous results without re-processing.
 
-### Configure swarm
+## Configure swarm
 
 The `swarm()` factory takes a default model and a list of named subagent configurations. Each subagent gets its own system prompt, tools, and optional model override.
 
@@ -52,68 +52,53 @@ const agent = createDeepAgent({
 
 When no model is specified on a subagent, it uses `defaultModel`.
 
-### How it works
+## How it works
 
 Swarm operates on a **table**: a JSONL-backed data structure where each row is an independent unit of work with an `id` and arbitrary columns. The agent creates a table, dispatches work across rows, and reads results back. The table is the single source of truth throughout the pipeline.
 
-```mermaid
-sequenceDiagram
-    participant Agent as Agent (interpreter)
-    participant Swarm as Swarm library
-    participant Sub as Subagents
-
-    Agent->>Swarm: create({ tasks: [...] })
-    Swarm-->>Agent: { id, count, columns }
-
-    Agent->>Swarm: run(tableId, { instruction, ... })
-    Swarm->>Sub: Dispatch N tasks (up to 10 concurrent)
-    Sub-->>Swarm: Results merged as columns
-    Swarm-->>Agent: { completed, failed, skipped, failures }
-
-    Agent->>Swarm: rows(tableId, { filter, columns })
-    Swarm-->>Agent: Row data (stays in interpreter memory)
-    Agent->>Agent: Aggregate in JS, console.log result
-```
+<img className="block dark:hidden" src="/oss/images/deepagents/swarm-overview-light.png" alt="Swarm architecture: the orchestrating agent sends code to the QuickJS interpreter sandbox, which calls create(), run(), and rows(). run() dispatches work through the PTC bridge to isolated subagents. Only handles and summaries surface back to the agent." />
+<img className="hidden dark:block" src="/oss/images/deepagents/swarm-overview.png" alt="Swarm architecture: the orchestrating agent sends code to the QuickJS interpreter sandbox, which calls create(), run(), and rows(). run() dispatches work through the PTC bridge to isolated subagents. Only handles and summaries surface back to the agent." />
 
 Data flows through the interpreter, not the agent's context window. The agent sees:
 
 1. The `create()` handle: `{ id: "t_abc", count: 1585, columns: ["id", "text"] }`
 2. The `run()` summary: `{ completed: 1585, failed: 0, skipped: 0, failures: [] }`
-3. The aggregation output from `rows()` + JavaScript
+3. Whatever the agent `console.log`s from `rows()` + JavaScript aggregation
 
-Total context consumed: a few hundred bytes instead of the full dataset.
+The source data and subagent results never enter the agent's context. Only the computed output from step 3 does, and the agent controls how much that is. For large outputs, the agent can write results to the filesystem via PTC and share the file path instead of logging the full content.
 
-### API reference
+## API reference
 
-#### `create(source)`
+### `create(source)`
 
 Builds a table from one of three source types and returns a lightweight handle. The actual row data is persisted to the backend and never returned to the caller.
 
 ```javascript
 import { create } from "swarm";
 
-// From glob pattern
+// From glob pattern (string or array of strings)
 const table = await create({ glob: "src/**/*.ts" });
+const table = await create({ glob: ["src/**/*.ts", "lib/**/*.ts"] });
 
 // From explicit file paths
 const table = await create({ filePaths: ["a.ts", "b.ts"] });
 
-// From inline records (must include an `id` field)
+// From inline records (must include a unique `id` field)
 const table = await create({
   tasks: items.map((name, i) => ({ id: `r${i}`, name })),
 });
 // → { id: "t_a1b2c3", count: 45, columns: ["id", "file"] }
 ```
 
-Exactly one source type must be provided. Providing zero or more than one throws.
+Exactly one source type must be provided. Providing zero or more than one throws. Empty sources (no glob matches, empty `filePaths`, empty `tasks`) and duplicate `id` values also throw.
 
 | Source | Row shape |
 | --- | --- |
-| `glob` | `{ id: <basename>, file: <path> }` |
+| `glob` | `{ id: <basename>, file: <path> }` — accepts `string \| string[]` |
 | `filePaths` | `{ id: <basename>, file: <path> }` |
 | `tasks` | As provided (must include `id`) |
 
-#### `run(tableId, options)`
+### `run(tableId, options)`
 
 Dispatches an instruction template across rows via subagents. Results are merged back as new columns on the table.
 
@@ -141,10 +126,42 @@ const result = await run(table.id, {
 | `filter` | omitted | [Filter clause](#filtering) to select a subset of rows. Unmatched rows are skipped. |
 | `subagentType` | omitted | Named subagent to dispatch to. When set, runs a full agentic loop with tools. When omitted, makes a single model call (invoke mode). |
 | `responseSchema` | required | JSON Schema (type: "object") for structured output. Properties become columns on the row. |
-| `batchSize` | auto | Rows per subagent call. Auto-computed to cap total dispatches at 10. Can also be a function `(row, rowCount) => number` for dynamic sizing. |
+| `batchSize` | auto | Rows per subagent call. Auto-computed to cap total dispatches at the `concurrency` limit. Can also be a function `(row, rowCount) => number` for dynamic sizing. All values are clamped to [1, 50]. |
 | `concurrency` | `10` | Maximum concurrent dispatches. Clamped to [1, 10]. |
 
-**Dispatch mode.** When `subagentType` is set, each dispatch runs a full agentic loop with tools and middleware (agent mode). When omitted, each dispatch is a direct model call with structured output and no tools (invoke mode). Use invoke mode for classification, extraction, and labeling. Use agent mode when the subagent needs tools like web search.
+**`instruction` vs `context`.** The `instruction` is interpolated per row — `{column}` placeholders are replaced with that row's values, so each subagent gets a different prompt. The `context` is the same for every subagent and goes before the instruction. Use `context` for shared background (project description, coding standards, domain rules) and `instruction` for the per-item task.
+
+```javascript
+await run(table.id, {
+  context: "This is a TypeScript Express backend using Prisma ORM.",
+  instruction: "Review {file} for SQL injection vulnerabilities.",
+  subagentType: "reviewer",
+  responseSchema: findingsSchema,
+});
+// Each subagent sees:
+//   "This is a TypeScript Express backend using Prisma ORM."
+//   "Review src/auth.ts for SQL injection vulnerabilities."
+```
+
+**Dispatch mode.** Swarm supports two dispatch modes:
+
+- **Invoke mode** (default). Each dispatch is a single model call with structured output and no tools. Use for classification, extraction, and labeling.
+- **Agent mode**. Set `subagentType` to a named subagent. Each dispatch runs a full agentic loop with tools and middleware. Use when the subagent needs capabilities like web search or file access.
+
+```javascript
+// Invoke mode — single model call, no tools
+await run(table.id, {
+  instruction: "Classify the sentiment of {text}",
+  responseSchema: sentimentSchema,
+});
+
+// Agent mode — full agentic loop with tools
+await run(table.id, {
+  instruction: "Research {company} and summarize recent news",
+  subagentType: "researcher",
+  responseSchema: researchSchema,
+});
+```
 
 **Return value.** `run()` returns a summary. It never throws due to individual task failures.
 
@@ -161,15 +178,24 @@ const result = await run(table.id, {
 }
 ```
 
-Failures are grouped by error message. Instead of 42 individual errors, the agent sees 3-4 categories with counts and affected IDs.
+Failures are grouped by error message. Instead of 42 individual errors, the agent sees a few categories with counts and affected IDs:
 
-#### `rows(tableId, options?)`
+```javascript
+// Example failures array
+[
+  { error: "Rate limit exceeded", count: 12, ids: ["r3", "r7", "r14", ...] },
+  { error: "Context length exceeded", count: 3, ids: ["r22", "r41", "r88"] },
+]
+```
 
-Retrieves rows for inspection and aggregation. The data enters the interpreter's memory, not the agent's context window. Only computed results (via `console.log`) flow back to the agent.
+### `rows(tableId, options?)`
+
+Retrieves rows for inspection and aggregation. The data enters the interpreter's memory, not the agent's context window. Only computed results (via `console.log`) flow back to the agent. For large result sets, write to the filesystem and share the path so the main agent can explore the data later.
 
 ```javascript
 import { rows } from "swarm";
 
+// Aggregate in JS, log a summary
 const data = await rows(table.id, {
   filter: { column: "sentiment", equals: "negative" },
   columns: ["id", "text", "sentiment", "confidence"],
@@ -178,6 +204,14 @@ const data = await rows(table.id, {
 
 const avgConfidence = data.reduce((s, r) => s + r.confidence, 0) / data.length;
 console.log(`Average confidence: ${avgConfidence}`);
+
+// Or write full results to a file for the main agent to read on demand
+const allData = await rows(table.id);
+await tools.writeFile({
+  file_path: "/results/analysis.json",
+  content: JSON.stringify(allData, null, 2),
+});
+console.log("Results written to /results/analysis.json");
 ```
 
 | Option | Default | Description |
@@ -233,6 +267,8 @@ When `responseSchema` is provided, each schema property is flattened as a top-le
 
 Schema `enum` constraints prevent output drift across large task sets. Schema `description` fields are visible to the model and influence output quality.
 
+The columns `id` and `file` are reserved. If a `responseSchema` includes properties with these names, they are silently dropped during result merging to avoid overwriting source data.
+
 Batching and structured output are independent. When `batchSize` is set without `responseSchema`, the batching layer auto-generates a minimal schema internally to match text results back to rows by ID. The caller gets a plain text column, same as unbatched.
 
 ### Batching and concurrency
@@ -241,7 +277,12 @@ Swarm manages concurrency at two levels.
 
 **Worker pool.** Up to 10 concurrent subagent dispatches per `run()` call, configurable via the `concurrency` option (clamped to [1, 10]).
 
-**Auto-batching.** When matched rows exceed the concurrency limit, multiple rows are grouped into each subagent call. This bounds total dispatches regardless of table size.
+**Auto-batching.** When matched rows exceed the concurrency limit, multiple rows are grouped into each subagent call. This bounds total dispatches regardless of table size. All batches are dispatched concurrently up to the `concurrency` limit — swarm doesn't wait for one batch to finish before starting the next.
+
+<img className="block dark:hidden" src="/oss/images/deepagents/swarm-batching-light.png" alt="Batching and structured output: 500 input rows are grouped into batches and solo dispatches. Each subagent processes its batch and returns structured output. Results are merged as new columns on the original table." />
+<img className="hidden dark:block" src="/oss/images/deepagents/swarm-batching.png" alt="Batching and structured output: 500 input rows are grouped into batches and solo dispatches. Each subagent processes its batch and returns structured output. Results are merged as new columns on the original table." />
+
+The following table assumes the default `concurrency` of 10. Lower concurrency values produce fewer, larger batches.
 
 | Matched rows | Batch size | Total dispatches | Max concurrent |
 | --- | --- | --- | --- |
@@ -251,9 +292,28 @@ Swarm manages concurrency at two levels.
 
 For example, 1,585 rows produces 32 batches of 50, dispatched 10 at a time. All 1,585 items are processed with at most 10 concurrent subagent calls at any point.
 
-### Patterns
+**Dynamic batch sizing.** `batchSize` can also be a function that returns a batch size per row. This is useful when rows vary in size and you want to pack more small items together while keeping large items in smaller batches.
 
-#### Single-pass file review
+```javascript
+await run(table.id, {
+  instruction: "Summarize: {text}",
+  responseSchema: summarySchema,
+  batchSize: (row, rowCount) => {
+    // Larger texts get smaller batches
+    if (row.text.length > 5000) return 1;
+    if (row.text.length > 1000) return 5;
+    return 20;
+  },
+});
+```
+
+All values (whether static or returned by the function) are clamped to [1, 50].
+
+**Table limits.** A session can hold up to 5 tables simultaneously. When a 6th table is created, the oldest table is evicted. Design pipelines to create tables as needed and let old ones age out.
+
+## Patterns
+
+### Single-pass file review
 
 ```javascript
 import { create, run, rows } from "swarm";
@@ -280,7 +340,7 @@ const flagged = await rows(table.id, {
 console.log(JSON.stringify(flagged, null, 2));
 ```
 
-#### Multi-pass analysis with filtering
+### Multi-pass analysis with filtering
 
 Multiple `run()` calls against the same table. Each pass writes to different columns. Filters scope which rows are dispatched in subsequent passes.
 
@@ -321,7 +381,69 @@ const negatives = await rows(table.id, {
 console.log(JSON.stringify(negatives, null, 2));
 ```
 
-#### Error handling and retry
+### Review, verify, and filter
+
+Two tables, two subagent types. The first pass produces findings, the second pass independently verifies them, and the agent reads back only confirmed results.
+
+```javascript
+import { create, run, rows } from "swarm";
+
+// Pass 1: review files for issues
+const files = await create({ glob: "src/**/*.ts" });
+
+await run(files.id, {
+  instruction: "Review {file} for bugs. Return a list of findings with file, title, and description.",
+  subagentType: "reviewer",
+  responseSchema: {
+    type: "object",
+    properties: {
+      findings: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            description: { type: "string" },
+          },
+          required: ["title", "description"],
+        },
+      },
+    },
+    required: ["findings"],
+  },
+});
+
+// Flatten findings into a new table
+const reviewData = await rows(files.id, { columns: ["file", "findings"] });
+const allFindings = reviewData.flatMap((r) =>
+  r.findings.map((f, i) => ({ id: `${r.file}-${i}`, file: r.file, ...f }))
+);
+
+const findings = await create({ tasks: allFindings });
+
+// Pass 2: verify each finding with a different subagent
+await run(findings.id, {
+  instruction: "Is this a real bug? {title}: {description} (in {file})",
+  subagentType: "verifier",
+  responseSchema: {
+    type: "object",
+    properties: {
+      confirmed: { type: "boolean" },
+      reason: { type: "string" },
+    },
+    required: ["confirmed", "reason"],
+  },
+});
+
+// Read back only confirmed findings
+const confirmed = await rows(findings.id, {
+  filter: { column: "confirmed", equals: true },
+  columns: ["file", "title", "reason"],
+});
+console.log(JSON.stringify(confirmed, null, 2));
+```
+
+### Error handling and retry
 
 The agent inspects deduplicated failure groups from `run()` and retries selectively:
 
@@ -347,7 +469,9 @@ if (result.failed > 0) {
 }
 ```
 
-#### Large-file classification with chunked reading
+### Large-file classification with chunked reading
+
+This example uses [programmatic tool calling](/oss/deepagents/interpreters#programmatic-tool-calling) to read a large file in chunks inside the interpreter. The `tools` global is available because `read_file` is in the PTC allowlist (swarm configures this automatically).
 
 ```javascript
 import { create, run, rows } from "swarm";

@@ -316,7 +316,9 @@ Interpreter skills are useful when the agent needs reusable helpers for structur
 :::js
 ## Interpreter libraries
 
-Interpreter libraries are pre-loaded modules available inside the interpreter via standard `import` statements. Where interpreter skills are dynamically loaded at runtime based on the agent's judgment, libraries are loaded by the developer at configuration time. You decide what capabilities are available. The agent just imports and uses them.
+Interpreter libraries let you package reusable capabilities that agents can import from interpreter code. You define the source, tools, and usage instructions at configuration time. At runtime, the agent writes `import { ... } from "my-library"` and gets access to whatever the library exposes.
+
+Libraries can import other libraries, so you can compose higher-level abstractions on top of lower-level ones.
 
 <Note>
 Interpreter libraries require `@langchain/quickjs>=0.3.0`.
@@ -347,9 +349,9 @@ const myLib: InterpreterLibrary = {
 };
 ```
 
-**Source code** can be written in TypeScript — type annotations are stripped automatically before execution. The agent imports from the library with `import { ... } from "my-library"`.
+**Source code** is JavaScript or TypeScript that runs inside the QuickJS sandbox. The agent imports from the library by name (e.g., `import { ... } from "my-library"`).
 
-**Instructions** are injected into the agent's system prompt so the agent knows how to use the library. Write these as markdown with a quick start example and API reference.
+**Instructions** are injected into the agent's system prompt so it knows how to use the library. Write these as markdown with a quick start example and API reference.
 
 ### PTC
 
@@ -386,6 +388,10 @@ const myLib: InterpreterLibrary = {
   ptcTools: ["write_file"],
   source: fs.readFileSync("./libraries/my-library/index.ts", "utf-8"),
   instructions: fs.readFileSync("./libraries/my-library/INSTRUCTIONS.md", "utf-8"),
+  files: new Map([
+    ["utils.ts", fs.readFileSync("./libraries/my-library/utils.ts", "utf-8")],
+    ["schemas.ts", fs.readFileSync("./libraries/my-library/schemas.ts", "utf-8")],
+  ]),
 };
 
 const agent = createDeepAgent({
@@ -408,7 +414,7 @@ const ranked = score(cleaned, criteria);
 ranked.slice(0, 5);
 ```
 
-### Interpreter libraries
+### Built-in libraries
 
 `@langchain/quickjs` ships with prebuilt libraries that you can add to any agent.
 
