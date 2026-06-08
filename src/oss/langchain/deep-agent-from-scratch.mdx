@@ -1,12 +1,24 @@
 ---
 title: Build a data analysis agent from scratch
 sidebarTitle: Deep Agent
-description: Build a data analysis agent step by step using create_agent and deepagents middleware.
+description: Build a data analysis agent step by step using create_agent and Deep Agents middleware.
 ---
 
-This guide builds a data analysis agent from first principles using `create_agent` and deepagents middleware. Rather than starting with `create_deep_agent`, we assemble the harness one piece at a time: so you can see exactly what each component adds and swap in only what your use case needs.
+import DeepAgentFromScratchMinimalPy from '/snippets/code-samples/deep-agent-from-scratch-minimal-py.mdx';
+import DeepAgentFromScratchSandboxPy from '/snippets/code-samples/deep-agent-from-scratch-sandbox-py.mdx';
+import DeepAgentFromScratchSkillsPy from '/snippets/code-samples/deep-agent-from-scratch-skills-py.mdx';
+import DeepAgentFromScratchSkillsUploadPy from '/snippets/code-samples/deep-agent-from-scratch-skills-upload-py.mdx';
+import DeepAgentFromScratchSubagentPy from '/snippets/code-samples/deep-agent-from-scratch-subagent-py.mdx';
+import DeepAgentFromScratchSummarizationPy from '/snippets/code-samples/deep-agent-from-scratch-summarization-py.mdx';
+import DeepAgentFromScratchUploadPy from '/snippets/code-samples/deep-agent-from-scratch-upload-py.mdx';
 
-The agent we'll build:
+This guide builds a data analysis agent from first principles using `create_agent` and Deep Agents middleware.
+
+Both `create_agent` and `create_deep_agent` provide you with fine-grained control over tools, memory, and more. The main difference between both is that Deep Agents comes with a range of commonly useful capabilities already built in, such as planning, file system tools, and subagents.
+If Deep Agents default harness does not fit your needs, this guide shows you how to start with `create_agent` and assemble the harness one piece at a time, so you can see exactly what each component adds and swap in only what your use case needs.
+
+Follow this guide to build an agent that:
+
 1. Accepts a CSV file for analysis
 2. Writes and executes Python code in an isolated sandbox
 3. Delegates visualization work to a specialized subagent
@@ -27,100 +39,80 @@ export LANGSMITH_TRACING=true
 export LANGSMITH_API_KEY=...
 ```
 
----
+Add the API key for the model provider of your choice. For example:
 
-## Step 1: The minimal agent
+```bash
+export ANTHROPIC_API_KEY=...
+```
 
-A model, a loop. Nothing else yet.
+## Build the agent
+
+<Steps>
+  <Step title="Create the minimal agent">
+
+Build the minimal agent which consists of only a model and a loop. Nothing else yet.
 
 :::python
-```python
-from langchain.agents import create_agent
 
-agent = create_agent("anthropic:claude-sonnet-4-6", tools=[])
-```
+<DeepAgentFromScratchMinimalPy />
+
 :::
 
 This runs, but the agent has no filesystem and no way to execute code. The next steps add those.
 
----
+  </Step>
 
-## Step 2: Add a sandbox backend
+  <Step title="Add a sandbox backend">
 
-`LangSmithSandbox` gives the agent an isolated environment with a filesystem and an `execute` tool for running shell commands. The agent can install packages, write scripts, and run them: without touching the host.
+@[`LangSmithSandbox`] gives the agent an isolated environment with a filesystem and an `execute` tool for running shell commands. With it, the agent can install packages, write scripts, and run them: without touching the host. To boot from a custom image instead of the default runtime, pass `snapshot_name` or `snapshot_id` to `create_sandbox()`; see [Sandbox snapshots](/langsmith/sandbox-snapshots).
 
 :::python
-```python
-from langchain.agents import create_agent
-from langsmith.sandbox import SandboxClient
-from deepagents.backends.langsmith import LangSmithSandbox
-from deepagents.middleware import FilesystemMiddleware
 
-client = SandboxClient()
-sandbox = client.create_sandbox(template_name="deepagents-deploy")
-backend = LangSmithSandbox(sandbox=sandbox)
+<DeepAgentFromScratchSandboxPy />
 
-agent = create_agent(
-    "anthropic:claude-sonnet-4-6",
-    tools=[],
-    middleware=[FilesystemMiddleware(backend=backend)],
-)
+:::
+
+The @[`FilesystemMiddleware`] adds multiple tools to the agent: `read_file`, `write_file`, `edit_file`, `glob`, and `grep`. Because the `LangSmithSandbox` backend implements the sandbox protocol, the `FilesystemMiddleware` also adds the `execute` tool which allows the agent to run shell commands.
+
+Use the following code to upload a CSV and invoke the agent:
+
+:::python
+
+<DeepAgentFromScratchUploadPy />
+
+:::
+
+You can at this point combine the code from the previous steps into one script and run it:
+
+:::python
+```bash
+python analyze_sales.py
 ```
 :::
 
-@[`FilesystemMiddleware`] adds `read_file`, `write_file`, `edit_file`, `glob`, and `grep`. Because `LangSmithSandbox` implements the sandbox protocol, it also adds `execute`: the agent can now run shell commands.
+On the first run, LangSmith provisions a sandbox (this can take a few seconds). The script uploads `sales.csv`, invokes the agent, and prints the result. You should see a `messages` list whose last entry is the assistant's analysis of the sample sales data: product-level revenue, which widgets sold most, and brief trend notes. Exact wording varies by model run.
 
-Upload a CSV and invoke:
+If you enabled tracing in [Setup](#setup), open the run in [LangSmith](https://smith.langchain.com/) to watch the agent use filesystem tools (`read_file`, and `execute` if it runs Python in the sandbox) before it replies.
 
-:::python
-```python
-import csv, io
+  </Step>
 
-rows = [
-    ["Date", "Product", "Units", "Revenue"],
-    ["2025-08-01", "Widget A", 10, 250],
-    ["2025-08-02", "Widget B", 5, 125],
-    ["2025-08-03", "Widget A", 7, 175],
-    ["2025-08-04", "Widget C", 3, 90],
-]
-buf = io.StringIO()
-csv.writer(buf).writerows(rows)
-backend.upload("sales.csv", buf.getvalue().encode())
+  <Step title="Add context management">
 
-result = agent.invoke({
-    "messages": [{"role": "user", "content": "Analyze sales.csv. Summarize trends."}]
-})
-```
-:::
-
----
-
-## Step 3: Add context management
-
-For longer analysis sessions the context window fills. `SummarizationMiddleware` compresses history automatically so the agent keeps working without hitting token limits.
+For longer analysis sessions the context window can fill up and . `SummarizationMiddleware` compresses history automatically so the agent keeps working without hitting token limits.
 
 :::python
-```python
-from deepagents.middleware import FilesystemMiddleware, SummarizationMiddleware
 
-model = "anthropic:claude-sonnet-4-6"
+<DeepAgentFromScratchSummarizationPy />
 
-agent = create_agent(
-    model=model,
-    tools=[],
-    middleware=[
-        FilesystemMiddleware(backend=backend),
-        SummarizationMiddleware(model=model, backend=backend),
-    ],
-)
-```
 :::
 
----
+  </Step>
 
-## Step 4: Add skills
+  <Step title="Add skills">
 
-Skills give the agent on-demand domain knowledge via progressive disclosure: loaded only when the current task calls for it. Create a skill file in your skills directory:
+Skills give the agent on-demand domain knowledge using progressive disclosure. When the agents starts it only has some metadata about the available skills. If and when a task requires the skill, the agent loads the skill.
+
+Create a skill file in your skills directory:
 
 ```
 skills/
@@ -145,65 +137,46 @@ Save figures with `plt.savefig("output.png", dpi=150, bbox_inches="tight")`.
 Write a markdown summary to `report.md` alongside any generated charts.
 ```
 
-:::python
-```python
-from deepagents.middleware import FilesystemMiddleware, SkillsMiddleware, SummarizationMiddleware
-
-agent = create_agent(
-    model=model,
-    tools=[],
-    middleware=[
-        FilesystemMiddleware(backend=backend),
-        SummarizationMiddleware(model=model, backend=backend),
-        SkillsMiddleware(backend=backend, sources=["./skills/"]),
-    ],
-)
-```
-:::
-
----
-
-## Step 5: Add a visualization subagent
-
-Some tasks benefit from isolation. A visualization subagent runs in its own context window, keeping chart generation separate from the main analysis: and enabling parallel execution.
+With @[`LangSmithSandbox`], skill paths resolve on the sandbox filesystem, not your local machine. Upload your local `skills/` directory before configuring @[`SkillsMiddleware`]:
 
 :::python
-```python
-from langchain.agents.middleware import TodoListMiddleware
-from deepagents import SubAgent
-from deepagents.middleware import (
-    FilesystemMiddleware,
-    SkillsMiddleware,
-    SubAgentMiddleware,
-    SummarizationMiddleware,
-)
 
-visualizer: SubAgent = {
-    "name": "visualizer",
-    "description": "Generates charts and visualizations from data files in the sandbox.",
-    "system_prompt": "You are a data visualization specialist. Write Python scripts using matplotlib and seaborn. Save all figures as PNG files.",
-    "tools": [],
-}
+<DeepAgentFromScratchSkillsUploadPy />
 
-agent = create_agent(
-    model=model,
-    tools=[],
-    middleware=[
-        FilesystemMiddleware(backend=backend),
-        SummarizationMiddleware(model=model, backend=backend),
-        SkillsMiddleware(backend=backend, sources=["./skills/"]),
-        TodoListMiddleware(),
-        SubAgentMiddleware(backend=backend, subagents=[visualizer]),
-    ],
-)
-```
 :::
 
-The main agent handles analysis and planning; it delegates chart generation to the `visualizer` subagent via the `task` tool.
+Then create your agent with your skills:
 
----
+:::python
+
+<DeepAgentFromScratchSkillsPy />
+
+:::
+
+  </Step>
+
+  <Step title="Add a visualization subagent">
+
+Some tasks produce large intermediate output (script drafts, failed runs, file reads) that would crowd the main agent's context if kept in one thread. A [subagent](/oss/deepagents/subagents) runs in its own context window so the supervisor sees only the final result, not every tool call along the way. That keeps the main analysis focused and leaves room for follow-up questions.
+
+One example where using a subagent makes sense is chart generation. Plotting often means iterating on Python scripts, installing packages, and reading error output before a figure is ready. The following `visualizer` subagent can handle that work in isolation while the main agent continues planning and analysis. With @[`TodoListMiddleware`], the main agent can also delegate that chart work in parallel instead of blocking on each plot.
+
+:::python
+
+<DeepAgentFromScratchSubagentPy />
+
+:::
+
+If you run this code the main agent now handles analysis and planning and delegates chart generation to the `visualizer` subagent via the `task` tool.
+
+If you enabled tracing in [Setup](#setup), open the run in [LangSmith](https://smith.langchain.com/) to see what happens throughout the agent run.
+
+  </Step>
+</Steps>
 
 ## What you built
+
+You've built a customized agent with the following middleware:
 
 | Middleware | What it adds |
 |---|---|
@@ -212,8 +185,11 @@ The main agent handles analysis and planning; it delegates chart generation to t
 | @[`SkillsMiddleware`] | Domain knowledge loaded on demand |
 | @[`TodoListMiddleware`] + @[`SubAgentMiddleware`] | Parallel visualization subagent |
 
-This is the same foundation as `create_deep_agent`: assembled manually so you control exactly what's included. The possibilities don't end here: see [Prebuilt middleware](/oss/langchain/middleware/built-in) for the full list of composable capabilities, and the @[`create_agent`] reference for all configuration options.
+:::python
+This is the same foundation as @[`create_deep_agent`]: assembled manually so you control exactly what's included.
+:::
+The possibilities don't end here: see [Prebuilt middleware](/oss/langchain/middleware/built-in) for the full list of composable capabilities, and the @[`create_agent`] reference for all configuration options.
 
 :::python
-For a pre-assembled version, see @[`create_deep_agent`] and [Customize Deep Agents](/oss/deepagents/customization). For the full data analysis example using `create_deep_agent`, see [Data analysis](/oss/deepagents/data-analysis).
+To work with the pre-assembled version, see  [Customize Deep Agents](/oss/deepagents/customization). For the full data analysis example using `create_deep_agent`, see [Data analysis](/oss/deepagents/data-analysis).
 :::
