@@ -49,7 +49,7 @@ upload_stream = agent.stream_events(
     config={"recursion_limit": 30},
 )
 for item in upload_stream.messages:
-    print("[step-2]", item.text)
+    print(item.text)
 upload_stream.output
 # :snippet-end:
 

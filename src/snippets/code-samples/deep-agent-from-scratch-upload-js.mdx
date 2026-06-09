@@ -23,7 +23,7 @@ const uploadStream = await agent.streamEvents(
 await Promise.all([
   (async () => {
     for await (const message of uploadStream.messages) {
-      console.log("[step-2]", await message.text);
+      console.log(await message.text);
     }
   })(),
   uploadStream.output,
