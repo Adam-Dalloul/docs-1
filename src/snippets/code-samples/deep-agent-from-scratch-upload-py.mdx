@@ -11,9 +11,18 @@ rows = [
 ]
 buf = io.StringIO()
 csv.writer(buf).writerows(rows)
-backend.upload_files([("sales.csv", buf.getvalue().encode())])
+backend.upload_files([("/sales.csv", buf.getvalue().encode())])
 
-result = agent.invoke({
-    "messages": [{"role": "user", "content": "Analyze sales.csv. Summarize trends."}]
-})
+upload_stream = agent.stream_events(
+    {
+        "messages": [
+            {"role": "user", "content": "Analyze sales.csv. Summarize trends."}
+        ]
+    },
+    version="v3",
+    config={"recursion_limit": 30},
+)
+for item in upload_stream.messages:
+    print("[step-2]", item.text)
+upload_stream.output
 ```

@@ -5,17 +5,25 @@ description: Build a data analysis agent step by step using create_agent and Dee
 ---
 
 import DeepAgentFromScratchMinimalPy from '/snippets/code-samples/deep-agent-from-scratch-minimal-py.mdx';
+import DeepAgentFromScratchMinimalJs from '/snippets/code-samples/deep-agent-from-scratch-minimal-js.mdx';
 import DeepAgentFromScratchSandboxPy from '/snippets/code-samples/deep-agent-from-scratch-sandbox-py.mdx';
+import DeepAgentFromScratchSandboxJs from '/snippets/code-samples/deep-agent-from-scratch-sandbox-js.mdx';
 import DeepAgentFromScratchSkillsPy from '/snippets/code-samples/deep-agent-from-scratch-skills-py.mdx';
+import DeepAgentFromScratchSkillsJs from '/snippets/code-samples/deep-agent-from-scratch-skills-js.mdx';
 import DeepAgentFromScratchSkillsUploadPy from '/snippets/code-samples/deep-agent-from-scratch-skills-upload-py.mdx';
+import DeepAgentFromScratchSkillsUploadJs from '/snippets/code-samples/deep-agent-from-scratch-skills-upload-js.mdx';
 import DeepAgentFromScratchSubagentPy from '/snippets/code-samples/deep-agent-from-scratch-subagent-py.mdx';
+import DeepAgentFromScratchSubagentJs from '/snippets/code-samples/deep-agent-from-scratch-subagent-js.mdx';
 import DeepAgentFromScratchSummarizationPy from '/snippets/code-samples/deep-agent-from-scratch-summarization-py.mdx';
+import DeepAgentFromScratchSummarizationJs from '/snippets/code-samples/deep-agent-from-scratch-summarization-js.mdx';
 import DeepAgentFromScratchUploadPy from '/snippets/code-samples/deep-agent-from-scratch-upload-py.mdx';
+import DeepAgentFromScratchUploadJs from '/snippets/code-samples/deep-agent-from-scratch-upload-js.mdx';
 
 This guide builds a data analysis agent from first principles using `create_agent` and Deep Agents middleware.
 
-Both `create_agent` and `create_deep_agent` provide you with fine-grained control over tools, memory, and more. The main difference between both is that Deep Agents comes with a range of commonly useful capabilities already built in, such as planning, file system tools, and subagents.
-If Deep Agents default harness does not fit your needs, this guide shows you how to start with `create_agent` and assemble the harness one piece at a time, so you can see exactly what each component adds and swap in only what your use case needs.
+Both `create_agent` and `create_deep_agent` provide you with fine-grained control over tools, memory, and more.
+The main difference between both is that Deep Agents comes with a range of commonly useful capabilities already built in, such as planning, file system tools, and subagents.
+If the Deep Agents default harness does not fit your needs, this guide shows you how to start with `create_agent` and assemble the harness one piece at a time, so you can see exactly what each component adds and swap in only what your use case needs.
 
 Follow this guide to build an agent that:
 
@@ -24,7 +32,26 @@ Follow this guide to build an agent that:
 3. Delegates visualization work to a specialized subagent
 4. Loads data analysis patterns from a skills file
 
+The final stack mirrors what `create_deep_agent` assembles by default.
+
+## What you will learn
+
+Each step adds one capability to the same data analysis agent:
+
+| Step | Problem without it | What you add |
+|------|-------------------|--------------|
+| Minimal agent | — | Baseline loop: model + tools, no harness |
+| Sandbox + filesystem | Agent cannot read CSVs or run Python | Isolated [backend](/oss/deepagents/backends) + file and execute tools |
+| Summarization | Long sessions hit context limits | Automatic history compression |
+| Skills | Domain rules bloat the system prompt | On-demand expertise via [progressive disclosure](/oss/langchain/multi-agent/skills-sql-assistant) |
+| Subagent | Chart iteration crowds the main thread | Isolated worker + parallel delegation |
+
 ## Setup
+
+<Steps>
+  <Step title="Install packages">
+
+Install the packages for this tutorial:
 
 :::python
 ```bash
@@ -32,25 +59,53 @@ pip install deepagents langsmith
 ```
 :::
 
-Enable LangSmith tracing to inspect every step:
+:::js
+```bash
+npm install deepagents langsmith
+```
+:::
+
+  </Step>
+
+  <Step title="Set up LangSmith API keys">
+
+This tutorial uses @[`LangSmithSandbox`], which provisions sandboxes through `SandboxClient`. That client authenticates with LangSmith using `LANGSMITH_API_KEY` from your environment, so an API key is required to run the tutorial. Setting up LangSmith also allows you to see traces of what happens when your agent runs.
+
+1. [Sign up for a free account](https://smith.langchain.com). You can use Google, GitHub, or email.
+2. [Create an API key](/langsmith/create-account-api-key) in **Settings → API Keys**.
+3. Export the LangSmith API key:
 
 ```bash
-export LANGSMITH_TRACING=true
 export LANGSMITH_API_KEY=...
 ```
 
-Add the API key for the model provider of your choice. For example:
+4. Enable tracing to inspect tool calls, middleware steps, and subagent delegation as you add each piece:
+
+```bash
+export LANGSMITH_TRACING=true
+```
+
+  </Step>
+
+  <Step title="Add a model provider API key">
+
+Export the API key for the model provider you use in the code samples. For example:
 
 ```bash
 export ANTHROPIC_API_KEY=...
 ```
+
+  </Step>
+</Steps>
 
 ## Build the agent
 
 <Steps>
   <Step title="Create the minimal agent">
 
-Build the minimal agent which consists of only a model and a loop. Nothing else yet.
+A data analysis agent needs more than a chat loop, but to begin with, start with the baseline: only a model and a loop.
+
+Use @[`create_agent`] and specify the model that you want to use:
 
 :::python
 
@@ -58,13 +113,34 @@ Build the minimal agent which consists of only a model and a loop. Nothing else 
 
 :::
 
-This runs, but the agent has no filesystem and no way to execute code. The next steps add those.
+:::js
+
+<DeepAgentFromScratchMinimalJs />
+
+:::
+
+This runs, but the agent has no filesystem and no way to execute code. If you ask it to analyze a CSV, it can only guess from the prompt. The next steps add real file access and code execution.
 
   </Step>
 
   <Step title="Add a sandbox backend">
 
-@[`LangSmithSandbox`] gives the agent an isolated environment with a filesystem and an `execute` tool for running shell commands. With it, the agent can install packages, write scripts, and run them: without touching the host. To boot from a custom image instead of the default runtime, pass `snapshot_name` or `snapshot_id` to `create_sandbox()`; see [Sandbox snapshots](/langsmith/sandbox-snapshots).
+To analyze data efficiently, the agent needs to run code on files. This requires two things:
+
+- An isolated [sandbox](/oss/deepagents/sandboxes) where the agent can place files and run code on the files without giving the agent access to your host machine.
+- A [backend](/oss/deepagents/backends) which provides the file system tools to work with the sandbox (`read_file`, `write_file`, `edit_file`, `glob`, and `grep`) using the @[`FilesystemMiddleware`]:**. Because the `LangSmithSandbox` backend implements the sandbox protocol, @[`FilesystemMiddleware`] also adds the `execute` tool, which allows the agent to run shell commands.
+
+@[`LangSmithSandbox`] is where files live and commands run. @[`FilesystemMiddleware`] is what exposes that environment to the model as tools. The same middleware works with other backends if you swap the backend later.
+
+:::python
+@[`LangSmithSandbox`] gives the agent an isolated environment with a filesystem and an `execute` tool for running shell commands. With it, the agent can install packages, write scripts, and run them without touching the host. To boot from a custom image instead of the default runtime, pass `snapshot_name` or `snapshot_id` to `create_sandbox()`; see [Sandbox snapshots](/langsmith/sandbox-snapshots).
+:::
+
+:::js
+@[`LangSmithSandbox`] gives the agent an isolated environment with a filesystem and an `execute` tool for running shell commands. With it, the agent can install packages, write scripts, and run them without touching the host. To boot from a custom image instead of the default runtime, pass `snapshotId` to `LangSmithSandbox.create()`; see [Sandbox snapshots](/langsmith/sandbox-snapshots).
+:::
+
+Replace the agent from the previous step with one that includes @[`FilesystemMiddleware`]:
 
 :::python
 
@@ -72,9 +148,13 @@ This runs, but the agent has no filesystem and no way to execute code. The next 
 
 :::
 
-The @[`FilesystemMiddleware`] adds multiple tools to the agent: `read_file`, `write_file`, `edit_file`, `glob`, and `grep`. Because the `LangSmithSandbox` backend implements the sandbox protocol, the `FilesystemMiddleware` also adds the `execute` tool which allows the agent to run shell commands.
+:::js
 
-Use the following code to upload a CSV and invoke the agent:
+<DeepAgentFromScratchSandboxJs />
+
+:::
+
+The sandbox filesystem is separate from your laptop. You must upload the files you need to it before you invoke the agent:
 
 :::python
 
@@ -82,7 +162,17 @@ Use the following code to upload a CSV and invoke the agent:
 
 :::
 
-You can at this point combine the code from the previous steps into one script and run it:
+:::js
+
+<DeepAgentFromScratchUploadJs />
+
+:::
+
+<Note>
+With @[`LangSmithSandbox`], upload paths must be absolute POSIX paths (for example, `/sales.csv`). Relative paths such as `sales.csv` are rejected with `invalid_path` and the file is not written to the sandbox.
+</Note>
+
+Combine the code from the previous steps into one script and run it:
 
 :::python
 ```bash
@@ -90,15 +180,25 @@ python analyze_sales.py
 ```
 :::
 
-On the first run, LangSmith provisions a sandbox (this can take a few seconds). The script uploads `sales.csv`, invokes the agent, and prints the result. You should see a `messages` list whose last entry is the assistant's analysis of the sample sales data: product-level revenue, which widgets sold most, and brief trend notes. Exact wording varies by model run.
+:::js
+```bash
+npx tsx analyze-sales.ts
+```
+:::
 
-If you enabled tracing in [Setup](#setup), open the run in [LangSmith](https://smith.langchain.com/) to watch the agent use filesystem tools (`read_file`, and `execute` if it runs Python in the sandbox) before it replies.
+On the first run, LangSmith provisions a sandbox (this can take a few seconds). The script uploads `sales.csv`, streams the agent run, and prints assistant messages as they arrive. You should see an analysis of the sample sales data: product-level revenue, which widgets sold most, and brief trend notes. Exact wording varies by model run.
+
+Open the run in [LangSmith](https://smith.langchain.com/) and watch the agent use filesystem tools (`read_file`, and `execute` if it runs Python in the sandbox) before it replies.
 
   </Step>
 
   <Step title="Add context management">
 
-For longer analysis sessions the context window can fill up and . `SummarizationMiddleware` compresses history automatically so the agent keeps working without hitting token limits.
+After step 2, every tool result stays in the message history. A real analysis session (multiple plots, failed scripts, large `read_file` output) fills the context window quickly.
+
+@[`SummarizationMiddleware`] compresses older turns when history grows too large, so the agent keeps working without you manually trimming messages. This matters less on the first `sales.csv` question and more on follow-ups such as "Now segment by product and plot monthly trends."
+
+Update your agent from step 2 by adding @[`SummarizationMiddleware`] to the middleware list:
 
 :::python
 
@@ -106,13 +206,23 @@ For longer analysis sessions the context window can fill up and . `Summarization
 
 :::
 
+:::js
+
+<DeepAgentFromScratchSummarizationJs />
+
+:::
+
+Run a multi-turn session to see summarization in action. After the initial analysis, ask follow-up questions that trigger more file reads or script runs. In LangSmith, look for a summarization step before later model calls. For more information, [Context engineering](/oss/langchain/context-engineering).
+
   </Step>
 
   <Step title="Add skills">
 
-Skills give the agent on-demand domain knowledge using progressive disclosure. When the agents starts it only has some metadata about the available skills. If and when a task requires the skill, the agent loads the skill.
+[Skills](/oss/langchain/multi-agent/skills-sql-assistant) provide a way to give an agent on-demand domain knowledge when needed using progressive disclosure. Skills can include multi-step workflows, rules, and conventions. By placing this information in a skill, it isn't added to the system prompt by default which ensures the tokens are only used when the information from the skill is needed for a task.
 
-Create a skill file in your skills directory:
+When the agent starts, it sees only lightweight metadata about each skill. When a task needs a skill, the agent loads the full skill file on demand.
+
+Create a skill file in a skills directory:
 
 ```
 skills/
@@ -137,6 +247,8 @@ Save figures with `plt.savefig("output.png", dpi=150, bbox_inches="tight")`.
 Write a markdown summary to `report.md` alongside any generated charts.
 ```
 
+This skill contains information on how the visualization should be done.
+
 With @[`LangSmithSandbox`], skill paths resolve on the sandbox filesystem, not your local machine. Upload your local `skills/` directory before configuring @[`SkillsMiddleware`]:
 
 :::python
@@ -145,13 +257,27 @@ With @[`LangSmithSandbox`], skill paths resolve on the sandbox filesystem, not y
 
 :::
 
-Then create your agent with your skills:
+:::js
+
+<DeepAgentFromScratchSkillsUploadJs />
+
+:::
+
+Then create your agent with your skills by adding @[`SkillsMiddleware`]:
 
 :::python
 
 <DeepAgentFromScratchSkillsPy />
 
 :::
+
+:::js
+
+<DeepAgentFromScratchSkillsJs />
+
+:::
+
+You can try a prompt such as "Analyze sales.csv using our pandas patterns." The agent will load the skill when it needs plotting or reporting guidance. If you ask a different question that does not need the skill, the agent will not load it.
 
   </Step>
 
@@ -161,15 +287,23 @@ Some tasks produce large intermediate output (script drafts, failed runs, file r
 
 One example where using a subagent makes sense is chart generation. Plotting often means iterating on Python scripts, installing packages, and reading error output before a figure is ready. The following `visualizer` subagent can handle that work in isolation while the main agent continues planning and analysis. With @[`TodoListMiddleware`], the main agent can also delegate that chart work in parallel instead of blocking on each plot.
 
+Update your agent from step 4 by adding @[`TodoListMiddleware`] and @[`SubAgentMiddleware`]:
+
 :::python
 
 <DeepAgentFromScratchSubagentPy />
 
 :::
 
-If you run this code the main agent now handles analysis and planning and delegates chart generation to the `visualizer` subagent via the `task` tool.
+:::js
 
-If you enabled tracing in [Setup](#setup), open the run in [LangSmith](https://smith.langchain.com/) to see what happens throughout the agent run.
+<DeepAgentFromScratchSubagentJs />
+
+:::
+
+Try a prompt such as "Analyze sales.csv, then create a bar chart of revenue by product." The main agent handles analysis and planning and delegates chart generation to the `visualizer` subagent via the `task` tool.
+
+If you enabled tracing in [Setup](#setup), open the run in [LangSmith](https://smith.langchain.com/). You should see a `task` call to `visualizer`, a separate sub-run with its own tool loop, and a short result returned to the supervisor.
 
   </Step>
 </Steps>
@@ -188,8 +322,17 @@ You've built a customized agent with the following middleware:
 :::python
 This is the same foundation as @[`create_deep_agent`]: assembled manually so you control exactly what's included.
 :::
+
+:::js
+This is the same foundation as @[`createDeepAgent`]: assembled manually so you control exactly what's included.
+:::
+
 The possibilities don't end here: see [Prebuilt middleware](/oss/langchain/middleware/built-in) for the full list of composable capabilities, and the @[`create_agent`] reference for all configuration options.
 
 :::python
-To work with the pre-assembled version, see  [Customize Deep Agents](/oss/deepagents/customization). For the full data analysis example using `create_deep_agent`, see [Data analysis](/oss/deepagents/data-analysis).
+To work with the pre-assembled version, see [Customize Deep Agents](/oss/deepagents/customization). For the full data analysis example using `create_deep_agent`, see [Data analysis](/oss/deepagents/data-analysis).
+:::
+
+:::js
+To work with the pre-assembled version, see [Customize Deep Agents](/oss/deepagents/customization). For the full data analysis example using `createDeepAgent`, see [Data analysis](/oss/deepagents/data-analysis).
 :::

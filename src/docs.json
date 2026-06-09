@@ -1907,6 +1907,7 @@
                           "group": "LangChain",
                           "expanded": true,
                           "pages": [
+                            "oss/javascript/langchain/deep-agent-from-scratch",
                             "oss/javascript/langchain/knowledge-base",
                             "oss/javascript/langchain/rag",
                             "oss/javascript/langchain/sql-agent",
