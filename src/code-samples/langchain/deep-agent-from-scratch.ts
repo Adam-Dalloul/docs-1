@@ -10,12 +10,23 @@ let agent = createAgent({
 // :snippet-end:
 
 // :snippet-start: deep-agent-from-scratch-sandbox-js
-import { createAgent } from "langchain";
 import { createFilesystemMiddleware, LangSmithSandbox } from "deepagents";
 import { SandboxClient } from "langsmith/sandbox";
 
 const client = new SandboxClient();
-const sandbox = await client.createSandbox({ snapshotName: "default" });
+// :remove-start:
+const snapshots = await client.listSnapshots({
+  nameContains: "langchain-docs",
+  limit: 100,
+});
+const langchainDocsSnapshots = Array.from(snapshots).filter(
+  (snapshot) => snapshot.name === "langchain-docs" && snapshot.id,
+);
+for (const snapshot of langchainDocsSnapshots) {
+  await client.deleteSnapshot(snapshot.id);
+}
+// :remove-end:
+const sandbox = await client.createSandbox({ name: "langchain-docs" });
 const backend = new LangSmithSandbox({ sandbox });
 
 agent = createAgent({
@@ -58,11 +69,7 @@ await Promise.all([
 // :snippet-end:
 
 // :snippet-start: deep-agent-from-scratch-summarization-js
-import { createAgent } from "langchain";
-import {
-  createFilesystemMiddleware,
-  createSummarizationMiddleware,
-} from "deepagents";
+import { createSummarizationMiddleware } from "deepagents";
 
 agent = createAgent({
   model: "anthropic:claude-sonnet-4-6",
@@ -105,12 +112,7 @@ await backend.uploadFiles(skillFiles);
 // :snippet-end:
 
 // :snippet-start: deep-agent-from-scratch-skills-js
-import { createAgent } from "langchain";
-import {
-  createFilesystemMiddleware,
-  createSkillsMiddleware,
-  createSummarizationMiddleware,
-} from "deepagents";
+import { createSkillsMiddleware } from "deepagents";
 
 let model = "anthropic:claude-sonnet-4-6";
 
@@ -126,14 +128,8 @@ agent = createAgent({
 // :snippet-end:
 
 // :snippet-start: deep-agent-from-scratch-subagent-js
-import { createAgent, todoListMiddleware } from "langchain";
-import {
-  createFilesystemMiddleware,
-  createSkillsMiddleware,
-  createSubAgentMiddleware,
-  createSummarizationMiddleware,
-  type SubAgent,
-} from "deepagents";
+import { todoListMiddleware } from "langchain";
+import { createSubAgentMiddleware, type SubAgent } from "deepagents";
 
 const visualizer: SubAgent = {
   name: "visualizer",

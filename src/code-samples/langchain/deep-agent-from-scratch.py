@@ -13,7 +13,13 @@ from deepagents.middleware import FilesystemMiddleware
 from langsmith.sandbox import SandboxClient
 
 client = SandboxClient()
-sandbox = client.create_sandbox(snapshot_name="default")
+# :remove-start:
+sandboxes = client.list_sandboxes()
+for existing in sandboxes:
+    if existing.name == "langchain-docs":
+        client.delete_sandbox(existing.name)
+# :remove-end:
+sandbox = client.create_sandbox(name="langchain-docs")
 backend = LangSmithSandbox(sandbox=sandbox)
 
 agent = create_agent(
