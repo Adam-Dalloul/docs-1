@@ -7,7 +7,7 @@ agent = create_agent(
     middleware=[
         FilesystemMiddleware(backend=backend),
         SummarizationMiddleware(model=model, backend=backend),
-        SkillsMiddleware(backend=backend, sources=["./skills/"]),
+        SkillsMiddleware(backend=backend, sources=["/skills/"]),
     ],
 )
 ```

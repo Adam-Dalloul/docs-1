@@ -37,16 +37,20 @@ rows = [
 ]
 buf = io.StringIO()
 csv.writer(buf).writerows(rows)
-backend.upload_files([("sales.csv", buf.getvalue().encode())])
+backend.upload_files([("/sales.csv", buf.getvalue().encode())])
 
-result = agent.invoke({
-    "messages": [{"role": "user", "content": "Analyze sales.csv. Summarize trends."}]
-})
-
-# :remove-start:
-print(result)
-assert result is not None
-# :remove-end:
+upload_stream = agent.stream_events(
+    {
+        "messages": [
+            {"role": "user", "content": "Analyze sales.csv. Summarize trends."}
+        ]
+    },
+    version="v3",
+    config={"recursion_limit": 30},
+)
+for item in upload_stream.messages:
+    print("[step-2]", item.text)
+upload_stream.output
 # :snippet-end:
 
 # :snippet-start: deep-agent-from-scratch-summarization-py
@@ -67,19 +71,18 @@ agent = create_agent(
 # :snippet-start: deep-agent-from-scratch-skills-upload-py
 from pathlib import Path
 
-# :snippet-end:
-skills_dir = ("src/code-samples/langchain/skills")
-
-# skills_dir = (Path(__file__).resolve().parent / "skills").resolve()
-# # :snippet-end:
+skills_dir = (Path(__file__).resolve().parent / "skills").resolve()
+# :remove-start:
+skills_dir = Path("src/code-samples/langchain/skills").resolve()
+# :remove-end:
 skill_files: list[tuple[str, bytes]] = []
 for path in sorted(skills_dir.rglob("*")):
     if not path.is_file():
         continue
     rel = path.resolve().relative_to(skills_dir)
-    skill_files.append((f"skills/{rel.as_posix()}", path.read_bytes()))
+    skill_files.append((f"/skills/{rel.as_posix()}", path.read_bytes()))
 backend.upload_files(skill_files)
-# # :snippet-end:
+# :snippet-end:
 
 # :snippet-start: deep-agent-from-scratch-skills-py
 from deepagents.middleware import FilesystemMiddleware, SkillsMiddleware, SummarizationMiddleware
@@ -90,7 +93,7 @@ agent = create_agent(
     middleware=[
         FilesystemMiddleware(backend=backend),
         SummarizationMiddleware(model=model, backend=backend),
-        SkillsMiddleware(backend=backend, sources=["./skills/"]),
+        SkillsMiddleware(backend=backend, sources=["/skills/"]),
     ],
 )
 # :snippet-end:
@@ -119,7 +122,7 @@ agent = create_agent(
     middleware=[
         FilesystemMiddleware(backend=backend),
         SummarizationMiddleware(model=model, backend=backend),
-        SkillsMiddleware(backend=backend, sources=["./skills/"]),
+        SkillsMiddleware(backend=backend, sources=["/skills/"]),
         TodoListMiddleware(),
         SubAgentMiddleware(backend=backend, subagents=[visualizer]),
     ],
@@ -127,10 +130,31 @@ agent = create_agent(
 # :snippet-end:
 
 # :remove-start:
+assert backend.read("/sales.csv").error is None
+assert backend.read("/skills/pandas-patterns/SKILL.md").error is None
 assert agent is not None
-print(agent.invoke({
-    "messages": [{"role": "user", "content": "Analyze sales.csv. Summarize trends."}]
-}))
 
-print("✓ deep-agent-from-scratch sample compiles")
+stream = agent.stream_events(
+    {
+        "messages": [
+            {
+                "role": "user",
+                "content": (
+                    "Use read_file on /sales.csv only. Summarize total revenue "
+                    "by product in one short sentence. Do not use glob or "
+                    "list other directories."
+                ),
+            }
+        ]
+    },
+    version="v3",
+    config={"recursion_limit": 30},
+)
+saw_message = False
+for item in stream.messages:
+    saw_message = True
+    print("[agent]", item.text)
+stream.output
+assert saw_message, "expected at least one streamed message"
+print("✓ deep-agent-from-scratch sample completed")
 # :remove-end:
