@@ -1,0 +1,24 @@
+```ts
+import { createAgent } from "langchain";
+import {
+  FilesystemMiddleware,
+  MemoryMiddleware,
+  SkillsMiddleware,
+  SummarizationMiddleware,
+  StateBackend,
+} from "deepagents";
+
+var backend = new StateBackend();
+const model = "anthropic:claude-sonnet-4-6";
+
+var agent = createAgent({
+  model,
+  tools: [search],
+  middleware: [
+    new FilesystemMiddleware({ backend }),
+    new SummarizationMiddleware({ model, backend }),
+    new MemoryMiddleware({ backend, sources: ["./AGENTS.md"] }),
+    new SkillsMiddleware({ backend, sources: ["./skills/"] }),
+  ],
+});
+```

@@ -1,4 +1,3 @@
-// :snippet-start: agents-streaming-progress-js
 import { createAgent, tool } from "langchain";
 import * as z from "zod";
 
@@ -14,7 +13,7 @@ const agent = createAgent({
   tools: [search],
 });
 // :remove-end:
-
+// :snippet-start: agents-streaming-progress-js
 const stream = await agent.streamEvents(
   {
     messages: [
