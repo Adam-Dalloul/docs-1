@@ -13,7 +13,7 @@ from deepagents.middleware import FilesystemMiddleware
 from langsmith.sandbox import SandboxClient
 
 client = SandboxClient()
-sandbox = client.create_sandbox()
+sandbox = client.create_sandbox(snapshot_name="default")
 backend = LangSmithSandbox(sandbox=sandbox)
 
 agent = create_agent(

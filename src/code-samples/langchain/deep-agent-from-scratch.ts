@@ -15,7 +15,7 @@ import { createFilesystemMiddleware, LangSmithSandbox } from "deepagents";
 import { SandboxClient } from "langsmith/sandbox";
 
 const client = new SandboxClient();
-const sandbox = await client.createSandbox();
+const sandbox = await client.createSandbox({ snapshotName: "default" });
 const backend = new LangSmithSandbox({ sandbox });
 
 agent = createAgent({

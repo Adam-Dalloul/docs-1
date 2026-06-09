@@ -13,12 +13,12 @@ var search = tool(({ query }) => `Results for: ${query}`, {
 
 // :snippet-start: agents-execution-environment-js
 import { createAgent } from "langchain";
-import { FilesystemMiddleware, StateBackend } from "deepagents";
+import { createFilesystemMiddleware, StateBackend } from "deepagents";
 
 var agent = createAgent({
   model: "anthropic:claude-sonnet-4-6",
   tools: [search],
-  middleware: [new FilesystemMiddleware({ backend: new StateBackend() })],
+  middleware: [createFilesystemMiddleware({ backend: new StateBackend() })],
 });
 // :snippet-end:
 
@@ -29,11 +29,10 @@ const executionEnvironmentAgent = agent;
 // :snippet-start: agents-context-management-js
 import { createAgent } from "langchain";
 import {
-  FilesystemMiddleware,
-  MemoryMiddleware,
-  SkillsMiddleware,
-  SummarizationMiddleware,
   StateBackend,
+  createFilesystemMiddleware,
+  createSkillsMiddleware,
+  createSummarizationMiddleware,
 } from "deepagents";
 
 var backend = new StateBackend();
@@ -43,10 +42,9 @@ var agent = createAgent({
   model,
   tools: [search],
   middleware: [
-    new FilesystemMiddleware({ backend }),
-    new SummarizationMiddleware({ model, backend }),
-    new MemoryMiddleware({ backend, sources: ["./AGENTS.md"] }),
-    new SkillsMiddleware({ backend, sources: ["./skills/"] }),
+    createFilesystemMiddleware({ backend }),
+    createSummarizationMiddleware({ model, backend }),
+    createSkillsMiddleware({ backend, sources: ["./skills/"] }),
   ],
 });
 // :snippet-end:
@@ -209,10 +207,7 @@ async function main() {
     executionEnvironmentAgent,
     "agents execution environment",
   );
-  await assertAgentInvokes(
-    contextManagementAgent,
-    "agents context management",
-  );
+  await assertAgentInvokes(contextManagementAgent, "agents context management");
   await assertAgentInvokes(faultToleranceAgent, "agents fault tolerance");
   await assertAgentInvokes(guardrailsAgent, "agents guardrails");
   await assertAgentInvokes(

@@ -1,11 +1,10 @@
 ```ts
 import { createAgent } from "langchain";
 import {
-  FilesystemMiddleware,
-  MemoryMiddleware,
-  SkillsMiddleware,
-  SummarizationMiddleware,
   StateBackend,
+  createFilesystemMiddleware,
+  createSkillsMiddleware,
+  createSummarizationMiddleware,
 } from "deepagents";
 
 var backend = new StateBackend();
@@ -15,10 +14,9 @@ var agent = createAgent({
   model,
   tools: [search],
   middleware: [
-    new FilesystemMiddleware({ backend }),
-    new SummarizationMiddleware({ model, backend }),
-    new MemoryMiddleware({ backend, sources: ["./AGENTS.md"] }),
-    new SkillsMiddleware({ backend, sources: ["./skills/"] }),
+    createFilesystemMiddleware({ backend }),
+    createSummarizationMiddleware({ model, backend }),
+    createSkillsMiddleware({ backend, sources: ["./skills/"] }),
   ],
 });
 ```

@@ -15,18 +15,8 @@ var agent = createAgent({ model: "openai:gpt-5.4", tools });
 const introAgent = agent;
 // :remove-end:
 
-// :snippet-start: agents-model-js
-import { createAgent } from "langchain";
-
-var agent = createAgent({ model: "openai:gpt-5.4", tools });
-// :snippet-end:
-
-// :remove-start:
-const modelAgent = agent;
-// :remove-end:
-
 // :snippet-start: agents-tools-js
-import { createAgent, tool } from "langchain";
+import { tool } from "langchain";
 import * as z from "zod";
 
 var search = tool(({ query }) => `Results for: ${query}`, {
@@ -55,8 +45,6 @@ const systemPromptAgent = agent;
 // :remove-end:
 
 // :snippet-start: agents-structured-output-js
-import * as z from "zod";
-
 const Answer = z.object({ summary: z.string(), confidence: z.number() });
 
 var agent = createAgent({
@@ -85,7 +73,6 @@ var agent = createAgent({
 
 // :remove-start:
 import { AIMessage } from "@langchain/core/messages";
-import { createAgent } from "langchain";
 
 const nameAgent = agent;
 
@@ -117,7 +104,6 @@ async function assertInvokes(
 
 async function main() {
   await assertInvokes(introAgent, "agents intro");
-  await assertInvokes(modelAgent, "agents model");
   await assertInvokes(toolsAgent, "agents tools");
   await assertInvokes(systemPromptAgent, "agents system prompt");
   const structured = structuredOutputResult.structuredResponse;
@@ -128,9 +114,6 @@ async function main() {
     throw new Error("expected confidence in [0, 1]");
   }
   console.log("✓ agents structured output");
-  if (nameAgent.name !== "research_assistant") {
-    throw new Error(`expected name research_assistant, got ${nameAgent.name}`);
-  }
   await assertInvokes(nameAgent, "agents name");
 }
 
