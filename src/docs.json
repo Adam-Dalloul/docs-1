@@ -1111,7 +1111,6 @@
                     {
                       "group": "Core capabilities",
                       "pages": [
-                        "oss/python/deepagents/harness",
                         "oss/python/deepagents/models",
                         "oss/python/deepagents/tools",
                         "oss/python/deepagents/context-engineering",
@@ -1567,7 +1566,6 @@
                     {
                       "group": "Core capabilities",
                       "pages": [
-                        "oss/javascript/deepagents/harness",
                         "oss/javascript/deepagents/models",
                         "oss/javascript/deepagents/tools",
                         "oss/javascript/deepagents/context-engineering",
@@ -2101,6 +2099,18 @@
     {
       "source": "/oss/javascript/langgraph/memory",
       "destination": "/oss/javascript/concepts/memory"
+    },
+    {
+      "source": "/oss/deepagents/harness",
+      "destination": "/oss/deepagents/overview"
+    },
+    {
+      "source": "/oss/python/deepagents/harness",
+      "destination": "/oss/python/deepagents/overview"
+    },
+    {
+      "source": "/oss/javascript/deepagents/harness",
+      "destination": "/oss/javascript/deepagents/overview"
     },
     {
       "source": "/oss/deepagents/memory",
