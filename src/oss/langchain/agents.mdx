@@ -209,7 +209,7 @@ For more details on streaming, see [Streaming](/oss/langchain/streaming).
 
 `create_agent` is highly extensible. Middleware is the primitive for customization: each piece handles one concern, hooks into the agent loop at the right moment, and composes freely with any other. Take exactly what your use case needs and skip the rest.
 
-Common patterns are pre-built as first-class middleware. You can build anythign else as [custom middleware](/oss/langchain/middleware/custom).
+Common patterns are prebuilt as first-class middleware. You can build anything else as [custom middleware](/oss/langchain/middleware/custom).
 
 <img
     src="/oss/images/middleware_final.png"
@@ -243,7 +243,7 @@ As agents take on complex work, they need support across a few key areas. The mi
 </CardGroup>
 
 <Tip>
-`create_deep_agent` pre-assembles this stack for long-running coding and research tasks (filesystem, summarization, subagents, and prompt caching included by default). See [Deep Agents](/oss/deepagents/harness) for the full pre-built harness.
+`create_deep_agent` pre-assembles this stack for long-running coding and research tasks (filesystem, summarization, subagents, and prompt caching included by default). See [Deep Agents](/oss/deepagents/harness) for the full prebuilt harness.
 </Tip>
 
 ### Execution environment
@@ -314,7 +314,7 @@ See @[`modelRetryMiddleware`], @[`toolRetryMiddleware`], [Prebuilt middleware](/
 
 ### Guardrails
 
-Some policies can't live in a prompt — they need to be enforced deterministically regardless of what the model does. Guardrails intercept data as it flows through the agent loop, applying compliance rules or content policies before tool results reach the model's context.
+Some policies can't live in a prompt—they need to be enforced deterministically regardless of what the model does. Guardrails intercept data as it flows through the agent loop, applying compliance rules or content policies before tool results reach the model's context.
 
 :::python
 <AgentsGuardrailsPy />
@@ -333,7 +333,7 @@ See @[`piiMiddleware`], [Prebuilt middleware](/oss/langchain/middleware/built-in
 
 ### Steering
 
-Full autonomy isn't always appropriate. Steering lets you place humans at specific decision points — before destructive writes, expensive API calls, or anything requiring judgment — without restructuring your agent. The agent pauses and waits; a human approves, edits, or rejects; execution continues.
+Full autonomy isn't always appropriate. Steering lets you place humans at specific decision points—before destructive writes, expensive API calls, or anything requiring judgment—without restructuring your agent. The agent pauses and waits; a human approves, edits, or rejects; execution continues.
 
 :::python
 <AgentsSteeringPy />
