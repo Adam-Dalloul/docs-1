@@ -181,6 +181,7 @@
                   "tag": "Private beta",
                   "pages": [
                     "langsmith/llm-gateway",
+                    "langsmith/llm-gateway-custom-providers",
                     "langsmith/llm-gateway-spend-policies",
                     "langsmith/llm-gateway-redaction"
                   ]
@@ -218,6 +219,7 @@
                       ]
                     },
                     "langsmith/manage-organization-by-api",
+                    "langsmith/manage-with-terraform",
                     "langsmith/audit-logs"
                   ]
                 },
@@ -237,7 +239,8 @@
                         "langsmith/sandbox-auth-proxy",
                         "langsmith/sandbox-permissions",
                         "langsmith/sandbox-cli",
-                        "langsmith/sandbox-sdk"
+                        "langsmith/sandbox-sdk",
+                        "langsmith/sandbox-harbor"
                       ]
                     }
                   ]
@@ -425,11 +428,17 @@
                   ]
                 },
                 {
+                  "group": "Find and fix issues",
+                  "pages": [
+                    "langsmith/engine",
+                    "langsmith/engine-webhooks"
+                  ]
+                },
+                {
                   "group": "Automations",
                   "pages": [
                     "langsmith/rules",
-                    "langsmith/webhooks",
-                    "langsmith/engine-webhooks"
+                    "langsmith/webhooks"
                   ]
                 },
                 {
@@ -717,6 +726,7 @@
                   "group": "Core capabilities",
                   "pages": [
                     "langsmith/core-capabilities",
+                    "langsmith/event-streaming",
                     "langsmith/streaming",
                     "langsmith/add-human-in-the-loop",
                     "langsmith/human-in-the-loop-time-travel",
@@ -769,26 +779,26 @@
                 {
                   "group": "Deployment guides",
                   "pages": [
-                    {
-                      "group": "Managed Deep Agents",
-                      "icon": "robot",
-                      "tag": "PREVIEW",
-                      "pages": [
-                        "langsmith/managed-deep-agents-overview",
-                        "langsmith/managed-deep-agents-quickstart",
-                        "langsmith/managed-deep-agents-mcp",
-                        "langsmith/managed-deep-agents-deploy",
-                        "langsmith/managed-deep-agents-invoke",
-                        "langsmith/managed-deep-agents-sdk",
-                        "langsmith/managed-deep-agents-cli",
-                        "langsmith/managed-deep-agents-api"
-                      ]
-                    },
                     "langsmith/deploy-to-cloud",
                     "langsmith/hybrid",
                     "langsmith/deploy-standalone-server",
                     "langsmith/deploy-with-control-plane",
                     "langsmith/diagnostics-self-hosted"
+                  ]
+                },
+                {
+                  "group": "Managed Deep Agents",
+                  "icon": "robot",
+                  "tag": "PREVIEW",
+                  "pages": [
+                    "langsmith/managed-deep-agents-overview",
+                    "langsmith/managed-deep-agents-quickstart",
+                    "langsmith/managed-deep-agents-mcp",
+                    "langsmith/managed-deep-agents-deploy",
+                    "langsmith/managed-deep-agents-invoke",
+                    "langsmith/managed-deep-agents-sdk",
+                    "langsmith/managed-deep-agents-cli",
+                    "langsmith/managed-deep-agents-api"
                   ]
                 },
                 {
@@ -1298,7 +1308,14 @@
                     {
                       "group": "Capabilities",
                       "pages": [
-                        "oss/python/langgraph/persistence",
+                        {
+                          "group": "Persistence",
+                          "root": "oss/python/langgraph/persistence",
+                          "pages": [
+                            "oss/python/langgraph/checkpointers",
+                            "oss/python/langgraph/stores"
+                          ]
+                        },
                         "oss/python/langgraph/fault-tolerance",
                         "oss/python/langgraph/event-streaming",
                         "oss/python/langgraph/streaming",
@@ -1324,7 +1341,13 @@
                       "group": "Frontend",
                       "pages": [
                         "oss/python/langgraph/frontend/overview",
-                        "oss/python/langgraph/frontend/graph-execution"
+                        {
+                          "group": "Patterns",
+                          "pages": [
+                            "oss/python/langgraph/frontend/graph-execution",
+                            "oss/python/langgraph/frontend/custom-stream-channels"
+                          ]
+                        }
                       ]
                     },
                     {
@@ -1752,7 +1775,14 @@
                     {
                       "group": "Capabilities",
                       "pages": [
-                        "oss/javascript/langgraph/persistence",
+                        {
+                          "group": "Persistence",
+                          "root": "oss/javascript/langgraph/persistence",
+                          "pages": [
+                            "oss/javascript/langgraph/checkpointers",
+                            "oss/javascript/langgraph/stores"
+                          ]
+                        },
                         "oss/javascript/langgraph/event-streaming",
                         "oss/javascript/langgraph/streaming",
                         "oss/javascript/langgraph/interrupts",
@@ -1777,7 +1807,13 @@
                       "group": "Frontend",
                       "pages": [
                         "oss/javascript/langgraph/frontend/overview",
-                        "oss/javascript/langgraph/frontend/graph-execution"
+                        {
+                          "group": "Patterns",
+                          "pages": [
+                            "oss/javascript/langgraph/frontend/graph-execution",
+                            "oss/javascript/langgraph/frontend/custom-stream-channels"
+                          ]
+                        }
                       ]
                     },
                     {
