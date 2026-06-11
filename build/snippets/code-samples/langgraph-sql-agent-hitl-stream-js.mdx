@@ -1,0 +1,22 @@
+```ts
+const hitlQuestion = "Which genre on average has the longest tracks?";
+
+const hitlStream = await agentWithHuman.streamEvents(
+  { messages: [{ role: "user", content: hitlQuestion }] },
+  { ...config, version: "v3" },
+);
+
+for await (const snapshot of hitlStream.values) {
+  if (snapshot.messages && snapshot.messages.length > 0) {
+    const lastMessage = snapshot.messages[snapshot.messages.length - 1];
+    console.log(lastMessage.toFormattedString());
+  }
+}
+
+// Check for interrupts
+const state = await agentWithHuman.getState(config);
+if (state.next.length > 0) {
+  console.log("\nINTERRUPTED:");
+  console.log(JSON.stringify(state.tasks[0].interrupts[0], null, 2));
+}
+```

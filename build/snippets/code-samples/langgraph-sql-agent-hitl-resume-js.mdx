@@ -1,0 +1,14 @@
+```ts
+const resumeStream = await agentWithHuman.streamEvents(
+  new Command({ resume: { type: "accept" } }),
+  // new Command({ resume: { type: "edit", args: { query: "..." } } }),
+  { ...config, version: "v3" },
+);
+
+for await (const snapshot of resumeStream.values) {
+  if (snapshot.messages && snapshot.messages.length > 0) {
+    const lastMessage = snapshot.messages[snapshot.messages.length - 1];
+    console.log(lastMessage.toFormattedString());
+  }
+}
+```

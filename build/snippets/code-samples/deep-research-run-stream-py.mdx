@@ -1,0 +1,18 @@
+```python
+from langchain.messages import HumanMessage
+
+if __name__ == "__main__":
+    stream = agent.stream_events(
+        {
+            "messages": [
+                HumanMessage(content="Compare Python vs JavaScript for web development")
+            ]
+        },
+        version="v3",
+    )
+    for snapshot in stream.values:
+        if messages := snapshot.get("messages"):
+            for msg in messages:
+                if hasattr(msg, "content") and msg.content:
+                    print(msg.content)
+```
