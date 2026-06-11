@@ -7,6 +7,206 @@ description: Build agents that can plan, use subagents, and leverage file system
 Deep Agents is the easiest way to start building agents and applications that are powered by LLMs—with built-in capabilities for task planning, file systems for context management, subagent-spawning, and long-term memory.
 You can use deep agents for any task, including complex, multi-step tasks.
 
+## Quickstart
+
+:::python
+<Tabs>
+    <Tab title="Google">
+        ```python
+        # pip install -qU deepagents langchain-google-genai
+        from deepagents import create_deep_agent
+
+        def get_weather(city: str) -> str:
+            """Get weather for a given city."""
+            return f"It's always sunny in {city}!"
+
+        agent = create_deep_agent(
+            model="google_genai:gemini-3.5-flash",
+            tools=[get_weather],
+            system_prompt="You are a helpful assistant",
+        )
+
+        # Run the agent
+        agent.invoke(
+            {"messages": [{"role": "user", "content": "what is the weather in sf"}]}
+        )
+        ```
+    </Tab>
+    <Tab title="OpenAI">
+        ```python
+        # pip install -qU deepagents langchain-openai
+        from deepagents import create_deep_agent
+
+        def get_weather(city: str) -> str:
+            """Get weather for a given city."""
+            return f"It's always sunny in {city}!"
+
+        agent = create_deep_agent(
+            model="openai:gpt-5.4",
+            tools=[get_weather],
+            system_prompt="You are a helpful assistant",
+        )
+
+        # Run the agent
+        agent.invoke(
+            {"messages": [{"role": "user", "content": "what is the weather in sf"}]}
+        )
+        ```
+    </Tab>
+    <Tab title="Anthropic">
+        ```python
+        # pip install -qU deepagents langchain-anthropic
+        from deepagents import create_deep_agent
+
+        def get_weather(city: str) -> str:
+            """Get weather for a given city."""
+            return f"It's always sunny in {city}!"
+
+        agent = create_deep_agent(
+            model="anthropic:claude-sonnet-4-6",
+            tools=[get_weather],
+            system_prompt="You are a helpful assistant",
+        )
+
+        # Run the agent
+        agent.invoke(
+            {"messages": [{"role": "user", "content": "what is the weather in sf"}]}
+        )
+        ```
+    </Tab>
+    <Tab title="OpenRouter">
+        ```python
+        # pip install -qU deepagents langchain-openrouter
+        from deepagents import create_deep_agent
+
+        def get_weather(city: str) -> str:
+            """Get weather for a given city."""
+            return f"It's always sunny in {city}!"
+
+        agent = create_deep_agent(
+            model="openrouter:anthropic/claude-sonnet-4-6",
+            tools=[get_weather],
+            system_prompt="You are a helpful assistant",
+        )
+
+        # Run the agent
+        agent.invoke(
+            {"messages": [{"role": "user", "content": "what is the weather in sf"}]}
+        )
+        ```
+    </Tab>
+    <Tab title="Fireworks">
+        ```python
+        # pip install -qU deepagents langchain-fireworks
+        from deepagents import create_deep_agent
+
+        def get_weather(city: str) -> str:
+            """Get weather for a given city."""
+            return f"It's always sunny in {city}!"
+
+        agent = create_deep_agent(
+            model="fireworks:accounts/fireworks/models/qwen3p5-397b-a17b",
+            tools=[get_weather],
+            system_prompt="You are a helpful assistant",
+        )
+
+        # Run the agent
+        agent.invoke(
+            {"messages": [{"role": "user", "content": "what is the weather in sf"}]}
+        )
+        ```
+    </Tab>
+    <Tab title="Baseten">
+        ```python
+        # pip install -qU deepagents langchain-baseten
+        from deepagents import create_deep_agent
+
+        def get_weather(city: str) -> str:
+            """Get weather for a given city."""
+            return f"It's always sunny in {city}!"
+
+        agent = create_deep_agent(
+            model="baseten:zai-org/GLM-5",
+            tools=[get_weather],
+            system_prompt="You are a helpful assistant",
+        )
+
+        # Run the agent
+        agent.invoke(
+            {"messages": [{"role": "user", "content": "what is the weather in sf"}]}
+        )
+        ```
+    </Tab>
+    <Tab title="Ollama">
+        ```python
+        # pip install -qU deepagents langchain-ollama
+        from deepagents import create_deep_agent
+
+        def get_weather(city: str) -> str:
+            """Get weather for a given city."""
+            return f"It's always sunny in {city}!"
+
+        agent = create_deep_agent(
+            model="ollama:devstral-2",
+            tools=[get_weather],
+            system_prompt="You are a helpful assistant",
+        )
+
+        # Run the agent
+        agent.invoke(
+            {"messages": [{"role": "user", "content": "what is the weather in sf"}]}
+        )
+        ```
+    </Tab>
+</Tabs>
+:::
+
+:::js
+```ts
+import * as z from "zod";
+// npm install deepagents langchain @langchain/core
+import { createDeepAgent } from "deepagents";
+import { tool } from "langchain";
+
+const getWeather = tool(
+  ({ city }) => `It's always sunny in ${city}!`,
+  {
+    name: "get_weather",
+    description: "Get the weather for a given city",
+    schema: z.object({
+      city: z.string(),
+    }),
+  },
+);
+
+const agent = createDeepAgent({
+  tools: [getWeather],
+  systemPrompt: "You are a helpful assistant",
+});
+
+console.log(
+  await agent.invoke({
+    messages: [{ role: "user", content: "What's the weather in Tokyo?" }],
+  })
+);
+```
+:::
+
+See the [Quickstart](/oss/deepagents/quickstart/) and [Customization guide](/oss/deepagents/customization/) to get started building your own agents and applications with Deep Agents.
+
+<Tip>
+Trace requests, debug agent behavior, and evaluate outputs with [LangSmith](https://smith.langchain.com). Follow the [observability quickstart](/langsmith/observability-quickstart) to get set up. When ready for production, see [Going to production](/oss/deepagents/going-to-production) for LangSmith deployment options.
+</Tip>
+
+## Core capabilities
+
+<img
+    src="/oss/images/agent_harness_capabilities.svg"
+    alt="Agent harness capabilities by category"
+    style={{height: "300px", width: "auto", justifyContent: "center"}}
+    className="rounded-lg block mx-auto"
+/>
+
 Deep Agents is an ["agent harness"](/oss/concepts/products#agent-harnesses-like-the-deep-agents-sdk). It is the same core tool calling loop as other agent frameworks, but with built-in capabilities that make agents reliable for real tasks:
 
 <CardGroup cols={2}>
@@ -51,6 +251,8 @@ The execution environment is where an agent acts. It has four layers:
 - **[Virtual filesystem](#virtual-filesystem-access)**: file tools backed by pluggable backends
 - **[Filesystem permissions](#filesystem-permissions)**: declarative access control over which paths agents can read or write
 - **[Code execution](#code-execution)**: sandboxed shell execution and an in-process JavaScript interpreter
+
+**[Streaming](#streaming)** allows you to keep up with everything happening using typed event streams for messages, tools, values, and delegated tasks.
 
 ### Tools and MCP
 
@@ -130,6 +332,10 @@ Use sandbox backends when the agent needs to install dependencies, run tests, ca
 Use interpreters when the agent needs a lightweight programmable layer for loops, batching, deterministic data transformations, or programmatic tool calling. Interpreters do not provide shell access, package installs, or filesystem and network access.
 
 For sandbox setup, providers, and file transfer APIs, see [Sandboxes](/oss/deepagents/sandboxes). For the QuickJS runtime and programmatic tool calling, see [Interpreters](/oss/deepagents/interpreters).
+
+### Streaming
+
+[Event streaming](/oss/deepagents/event-streaming) exposes agent runs as typed projections for messages, tool calls, values, and output. Deep Agents add `stream.subagents` so each delegated task gets its own handle with independent message, tool-call, and nested subagent streams.
 
 ## Context management
 
@@ -216,7 +422,6 @@ For more information, see [Subagents](/oss/deepagents/subagents).
 ## Steering
 
 The steering component gives humans control over agent behavior at runtime and sets filesystem permissions for agent work.
-Deep Agents also provide event streaming to keep you in the loop on what is happening at each step.
 
 ### Human-in-the-loop
 
@@ -244,10 +449,6 @@ This model lets you restrict agents to specific directories (for example, `/work
 Permissions do not apply to [sandbox backends](/oss/deepagents/sandboxes), which support arbitrary command execution via the `execute` tool. For custom validation logic, use [backend policy hooks](/oss/deepagents/backends#add-policy-hooks).
 
 For the full rule structure, examples, and subagent inheritance, see [Permissions](/oss/deepagents/permissions).
-
-### Streaming
-
-[Event streaming](/oss/deepagents/event-streaming) exposes agent runs as typed projections for messages, tool calls, values, and output. Deep Agents add `stream.subagents` so each delegated task gets its own handle with independent message, tool-call, and nested subagent streams.
 
 ## Get started
 

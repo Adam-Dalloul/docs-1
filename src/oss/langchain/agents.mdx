@@ -36,9 +36,9 @@ import AgentsToolsPy from '/snippets/code-samples/agents-tools-py.mdx';
 An agent is a model calling tools in a loop until a given task is complete.
 
 <img
-    src="/oss/images/core_agent_loop.png"
+    src="/oss/images/core_agent_loop.svg"
     alt="Core agent loop diagram"
-    style={{height: "200px", width: "auto", justifyContent: "center"}}
+    style={{height: "300px", width: "auto", justifyContent: "center"}}
     className="rounded-lg block mx-auto"
 />
 
@@ -63,9 +63,16 @@ A harness is everything around that loop: the model, its prompt, its tools, and 
 
 :::
 
-Building on that, you can configure the basics directly with the `model=`, `tools=`, and `system_prompt=`parameters. For more advanced capabilities, extend the harness with [middleware](#configure-the-harness).
+Building on that, you can configure the basics directly with the `model=`, `tools=`, and `system_prompt=` parameters. For more advanced capabilities, extend the harness with [middleware](#configure-the-harness).
 
 ## Core components
+
+<img
+    src="/oss/images/agent_model_harness.svg"
+    alt="Agent model and harness components diagram"
+    style={{height: "280px", width: "auto", justifyContent: "center"}}
+    className="rounded-lg block mx-auto"
+/>
 
 ### Model
 
@@ -127,21 +134,6 @@ Return a validated schema from the agent using `response_format=`. See [Structur
 
 :::
 
-### Name
-
-Optionally use an identifier for the agent. This is especially useful when embedding the agent as a subgraph in [multi-agent](/oss/langchain/multi-agent) systems.
-
-:::python
-
-<AgentsNamePy />
-
-:::
-:::js
-
-<AgentsNameJs />
-
-:::
-
 ## Invocation
 
 <Tip>
@@ -186,9 +178,9 @@ If you also need to pass per-run configuration (such as a user ID, API keys, or 
 `thread_id` scopes the *conversation* (message history, checkpoints), while `context` carries *per-run* data your tools and middleware read at invocation time. Both are commonly passed together. See [tool context](/oss/langchain/tools#context) and [Runtime](/oss/langchain/runtime) for more.
 :::
 
-### Streaming
+## Streaming
 
-We've seen how the agent can be called with `invoke` to get a final response. If the agent executes multiple steps, this may take a while. To show intermediate progress, we can stream back messages as they occur.
+`invoke` returns the final response at the end of a run. If an agent executes multiple tool calls, users often need progress updates before completion. Use streaming to surface intermediate messages and tool activity as they happen.
 
 :::python
 
@@ -202,7 +194,7 @@ We've seen how the agent can be called with `invoke` to get a final response. If
 :::
 
 <Tip>
-For more details on streaming, see [Streaming](/oss/langchain/streaming).
+For streaming modes, event types, and UI patterns, see [Streaming](/oss/langchain/streaming).
 </Tip>
 
 ## Configure the harness
@@ -212,10 +204,10 @@ For more details on streaming, see [Streaming](/oss/langchain/streaming).
 Common patterns are prebuilt as first-class middleware. You can build anything else as [custom middleware](/oss/langchain/middleware/custom).
 
 <img
-    src="/oss/images/middleware_final.png"
-    alt="Middleware lifecycle diagram"
+    src="/oss/images/agent_harness_capabilities.svg"
+    alt="Agent harness capabilities by category"
     style={{height: "300px", width: "auto", justifyContent: "center"}}
-    className="rounded-lg mx-auto"
+    className="rounded-lg block mx-auto"
 />
 
 As agents take on complex work, they need support across a few key areas. The middleware ecosystem provides:
@@ -292,6 +284,21 @@ Complex tasks often exceed what one context window can handle. Delegation lets t
 :::
 
 See [Subagents](/oss/langchain/multi-agent/subagents).
+
+### Name your agent
+
+Optionally use an identifier for the agent. This is especially useful when embedding the agent as a subgraph in [multi-agent](/oss/langchain/multi-agent) systems.
+
+:::python
+
+<AgentsNamePy />
+
+:::
+:::js
+
+<AgentsNameJs />
+
+:::
 
 ### Fault tolerance
 

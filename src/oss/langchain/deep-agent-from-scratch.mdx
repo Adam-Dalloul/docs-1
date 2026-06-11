@@ -100,8 +100,7 @@ export ANTHROPIC_API_KEY=...
 
 ## Build the agent
 
-<Steps>
-  <Step title="Create the minimal agent">
+## Create the minimal agent
 
 A data analysis agent needs more than a chat loop, but to begin with, start with the baseline: only a model and a loop.
 
@@ -121,9 +120,7 @@ Use @[`create_agent`] and specify the model that you want to use:
 
 This runs, but the agent has no filesystem and no way to execute code. If you ask it to analyze a CSV, it can only guess from the prompt. The next steps add real file access and code execution.
 
-  </Step>
-
-  <Step title="Add a sandbox backend">
+## Add a sandbox backend
 
 To analyze data efficiently, the agent needs to run code on files. This requires two things:
 
@@ -190,9 +187,7 @@ On the first run, LangSmith provisions a sandbox (this can take a few seconds). 
 
 Open the run in [LangSmith](https://smith.langchain.com/) and watch the agent use filesystem tools (`read_file`, and `execute` if it runs Python in the sandbox) before it replies.
 
-  </Step>
-
-  <Step title="Add context management">
+## Add context management
 
 After step 2, every tool result stays in the message history. A real analysis session (multiple plots, failed scripts, large `read_file` output) fills the context window quickly.
 
@@ -214,9 +209,7 @@ Update your agent from step 2 by adding @[`SummarizationMiddleware`] to the midd
 
 Run a multi-turn session to see summarization in action. After the initial analysis, ask follow-up questions that trigger more file reads or script runs. In LangSmith, look for a summarization step before later model calls. For more information, [Context engineering](/oss/langchain/context-engineering).
 
-  </Step>
-
-  <Step title="Add skills">
+## Add skills
 
 [Skills](/oss/langchain/multi-agent/skills-sql-assistant) provide a way to give an agent on-demand domain knowledge when needed using progressive disclosure. Skills can include multi-step workflows, rules, and conventions. By placing this information in a skill, it isn't added to the system prompt by default which ensures the tokens are only used when the information from the skill is needed for a task.
 
@@ -279,9 +272,7 @@ Then create your agent with your skills by adding @[`SkillsMiddleware`]:
 
 You can try a prompt such as "Analyze sales.csv using our pandas patterns." The agent will load the skill when it needs plotting or reporting guidance. If you ask a different question that does not need the skill, the agent will not load it.
 
-  </Step>
-
-  <Step title="Add a visualization subagent">
+## Add a visualization subagent
 
 Some tasks produce large intermediate output (script drafts, failed runs, file reads) that would crowd the main agent's context if kept in one thread. A [subagent](/oss/deepagents/subagents) runs in its own context window so the supervisor sees only the final result, not every tool call along the way. That keeps the main analysis focused and leaves room for follow-up questions.
 
@@ -305,8 +296,6 @@ Try a prompt such as "Analyze sales.csv, then create a bar chart of revenue by p
 
 If you enabled tracing in [Setup](#setup), open the run in [LangSmith](https://smith.langchain.com/). You should see a `task` call to `visualizer`, a separate sub-run with its own tool loop, and a short result returned to the supervisor.
 
-  </Step>
-</Steps>
 
 ## What you built
 
